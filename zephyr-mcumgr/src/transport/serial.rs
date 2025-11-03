@@ -67,6 +67,17 @@ where
             self.serial
                 .write_all(&self.transfer_buffer[..base64_len + 3])?;
 
+            log::debug!(
+                "Sent Chunk ({}, {} bytes raw, {} bytes encoded)",
+                if self.transfer_buffer[0] == 6 {
+                    "initial"
+                } else {
+                    "partial"
+                },
+                body.len(),
+                base64_len,
+            );
+
             self.transfer_buffer[0] = 4;
             self.transfer_buffer[1] = 20;
         }
