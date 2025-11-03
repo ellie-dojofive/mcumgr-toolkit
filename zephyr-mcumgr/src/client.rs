@@ -6,7 +6,7 @@ use thiserror::Error;
 use crate::{
     commands,
     connection::{Connection, ExecuteError},
-    transport::{SERIAL_TRANSPORT_DEFAULT_MTU, SerialTransport},
+    transport::SerialTransport,
 };
 
 pub struct MCUmgrClient {
@@ -15,7 +15,7 @@ pub struct MCUmgrClient {
 
 #[derive(Error, Debug, Diagnostic)]
 pub enum FileDownloadError {
-    #[error("transport error")]
+    #[error("command execution failed")]
     #[diagnostic(code(zephyr_mcumgr::client::file_download::execute))]
     ExecuteError(#[from] ExecuteError),
     #[error("received offset does not match requested offset")]
@@ -35,7 +35,7 @@ pub enum FileDownloadError {
 impl MCUmgrClient {
     pub fn from_serial<T: Read + Write + 'static>(serial: T) -> Self {
         Self {
-            connection: Connection::new(SerialTransport::new(serial, SERIAL_TRANSPORT_DEFAULT_MTU)),
+            connection: Connection::new(SerialTransport::new(serial)),
         }
     }
 

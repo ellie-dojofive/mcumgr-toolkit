@@ -4,7 +4,7 @@ use miette::Diagnostic;
 use thiserror::Error;
 
 mod serial;
-pub use serial::{SERIAL_TRANSPORT_DEFAULT_MTU, SerialTransport};
+pub use serial::SerialTransport;
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 struct SmpHeader {

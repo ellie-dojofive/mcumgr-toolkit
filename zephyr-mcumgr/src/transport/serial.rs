@@ -30,13 +30,14 @@ fn fill_buffer_with_data<'a, I: Iterator<Item = u8>>(
     buffer
 }
 
-pub const SERIAL_TRANSPORT_DEFAULT_MTU: usize = 127;
+pub const SERIAL_TRANSPORT_ZEPHYR_MTU: usize = 127;
 
 impl<T> SerialTransport<T>
 where
     T: std::io::Write + std::io::Read,
 {
-    pub fn new(serial: T, mtu: usize) -> Self {
+    pub fn new(serial: T) -> Self {
+        let mtu = SERIAL_TRANSPORT_ZEPHYR_MTU;
         Self {
             serial,
             transfer_buffer: vec![0u8; mtu].into_boxed_slice(),
@@ -119,8 +120,9 @@ where
             let len = BASE64_STANDARD.decode_slice(base64_data, &mut self.body_buffer)?;
 
             log::debug!(
-                "Received Chunk ({}, {} bytes)",
+                "Received Chunk ({}, {} bytes raw, {} bytes decoded)",
                 if first { "initial" } else { "partial" },
+                base64_data.len(),
                 len
             );
             Ok(&self.body_buffer[..len])

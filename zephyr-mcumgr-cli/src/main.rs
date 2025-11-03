@@ -27,9 +27,7 @@ fn main() -> miette::Result<()> {
 
     let mut data = vec![];
     let t0 = SystemTime::now();
-    client
-        .fs_file_download("/internal/go.tiff", &mut data)
-        .unwrap();
+    client.fs_file_download("/internal/go.tiff", &mut data)?;
     let t1 = SystemTime::now();
     let duration = t1.duration_since(t0).unwrap().as_secs_f32();
     println!("{} bytes/s", data.len() as f32 / duration);
