@@ -56,13 +56,21 @@ impl MCUmgrClient {
         }
     }
 
-    pub fn with_smp_frame_size(mut self, smp_frame_size: usize) -> Self {
+    pub fn with_frame_size(mut self, smp_frame_size: usize) -> Self {
         self.smp_frame_size = smp_frame_size;
         self
     }
 
-    pub fn query_smp_frame_size(mut self) -> Self {
-        todo!()
+    pub fn read_auto_frame_size(&mut self) -> Result<(), ExecuteError> {
+        let mcumgr_params = self
+            .connection
+            .execute_cbor(&commands::os::MCUmgrParameters)?;
+
+        self.smp_frame_size = mcumgr_params.buf_size as usize;
+
+        log::debug!("Using frame size {}.", self.smp_frame_size);
+
+        Ok(())
     }
 
     pub fn os_echo(&mut self, msg: impl AsRef<str>) -> Result<String, ExecuteError> {

@@ -11,7 +11,8 @@ fn main() -> miette::Result<()> {
         .open()
         .into_diagnostic()?;
 
-    let mut client = MCUmgrClient::from_serial(serial).with_smp_frame_size(4096);
+    let mut client = MCUmgrClient::from_serial(serial);
+    client.read_auto_frame_size()?;
 
     println!("{:?}", client.os_echo("Hello world!")?);
 

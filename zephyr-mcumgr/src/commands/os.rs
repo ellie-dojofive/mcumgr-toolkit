@@ -46,3 +46,20 @@ impl super::McuMgrRequest for TaskStatistics {
     const GROUP_ID: u16 = 0;
     const COMMAND_ID: u8 = 2;
 }
+
+#[derive(Debug, Serialize)]
+pub struct MCUmgrParameters;
+
+#[derive(Debug, Deserialize)]
+pub struct MCUmgrParametersResponse {
+    pub buf_size: u32,
+    pub buf_count: u32,
+}
+
+impl super::McuMgrRequest for MCUmgrParameters {
+    type Response = MCUmgrParametersResponse;
+
+    const WRITE_OPERATION: bool = false;
+    const GROUP_ID: u16 = 0;
+    const COMMAND_ID: u8 = 6;
+}
