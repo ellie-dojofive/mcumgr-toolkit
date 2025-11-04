@@ -79,6 +79,18 @@ impl MCUmgrClient {
             .map(|resp| resp.r)
     }
 
+    /// Load a file from the device.
+    ///
+    ///  # Arguments
+    ///
+    /// * `name` - The full path of the file on the device.
+    /// * `writer` - A [`Write`] object that the file content will be written to.
+    ///
+    /// # Performance
+    ///
+    /// Downloading files with Zephyr's default parameters is slow.
+    /// You want to increase [`MCUMGR_TRANSPORT_NETBUF_SIZE`](https://github.com/zephyrproject-rtos/zephyr/blob/v4.2.1/subsys/mgmt/mcumgr/transport/Kconfig#L40)
+    /// to maybe `4096` or larger.
     pub fn fs_file_download<T: Write>(
         &mut self,
         name: impl AsRef<str>,
@@ -119,11 +131,25 @@ impl MCUmgrClient {
         Ok(())
     }
 
+    /// Write a file to the device.
+    ///
+    ///  # Arguments
+    ///
+    /// * `name` - The full path of the file on the device.
+    /// * `reader` - A [`Read`] object that contains the file content.
+    /// * `size` - The file size.
+    ///
+    /// # Performance
+    ///
+    /// Uploading files with Zephyr's default parameters is slow.
+    /// You want to increase [`MCUMGR_TRANSPORT_NETBUF_SIZE`](https://github.com/zephyrproject-rtos/zephyr/blob/v4.2.1/subsys/mgmt/mcumgr/transport/Kconfig#L40)
+    /// to maybe `4096` and then enable larger chunking through either [`MCUmgrClient::with_frame_size`]
+    /// or [`MCUmgrClient::use_auto_frame_size`].
     pub fn fs_file_upload<T: Read>(
         &mut self,
         name: impl AsRef<str>,
         mut reader: T,
-        length: u64,
+        size: u64,
     ) -> Result<(), FileUploadError> {
         let name = name.as_ref();
 
@@ -132,8 +158,8 @@ impl MCUmgrClient {
 
         let mut offset = 0;
 
-        while offset < length {
-            let current_chunk_size = (length - offset).min(data_buffer.len() as u64) as usize;
+        while offset < size {
+            let current_chunk_size = (size - offset).min(data_buffer.len() as u64) as usize;
 
             let chunk_buffer = &mut data_buffer[..current_chunk_size];
             reader.read_exact(chunk_buffer)?;
@@ -142,7 +168,7 @@ impl MCUmgrClient {
                 off: offset,
                 data: chunk_buffer,
                 name,
-                len: if offset == 0 { Some(length) } else { None },
+                len: if offset == 0 { Some(size) } else { None },
             })?;
 
             offset += chunk_buffer.len() as u64;

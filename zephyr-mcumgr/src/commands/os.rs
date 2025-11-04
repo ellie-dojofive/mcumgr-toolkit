@@ -24,7 +24,7 @@ impl<'a> super::McuMgrRequest for Echo<'a> {
 pub struct TaskStatistics;
 
 #[derive(Debug, Deserialize)]
-pub struct TaskStatsEntry {
+pub struct TaskStatisticsEntry {
     pub prio: i32,
     pub tid: u32,
     pub state: u32,
@@ -36,7 +36,7 @@ pub struct TaskStatsEntry {
 
 #[derive(Debug, Deserialize)]
 pub struct TaskStatisticsResponse {
-    pub tasks: HashMap<String, TaskStatsEntry>,
+    pub tasks: HashMap<String, TaskStatisticsEntry>,
 }
 
 impl super::McuMgrRequest for TaskStatistics {
