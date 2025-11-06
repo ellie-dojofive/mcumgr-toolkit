@@ -1,3 +1,7 @@
+#![forbid(unsafe_code)]
+#![doc = include_str!("../../README.md")]
+#![doc(issue_tracker_base_url = "https://github.com/Finomnis/zephyr-mcumgr-client/issues")]
+
 use std::time::{Duration, SystemTime};
 
 use miette::IntoDiagnostic;
@@ -11,7 +15,7 @@ fn main() -> miette::Result<()> {
         .open()
         .into_diagnostic()?;
 
-    let mut client = MCUmgrClient::from_serial(serial);
+    let mut client = MCUmgrClient::new_from_serial(serial);
     client.use_auto_frame_size()?;
 
     println!("{:?}", client.os_echo("Hello world!")?);

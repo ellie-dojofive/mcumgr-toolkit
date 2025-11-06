@@ -1,23 +1,40 @@
 use std::{fmt::Display, io::Cursor};
 
 use crate::{
-    commands::{ErrResponse, ErrResponseV2, McuMgrRequest},
+    commands::{ErrResponse, ErrResponseV2, McuMgrCommand},
     transport::{ReceiveError, SendError, Transport},
 };
 
 use miette::Diagnostic;
 use thiserror::Error;
 
+/// An SMP protocol layer connection to a device.
+///
+/// In most cases this struct will not be used directly by the user,
+/// but instead it is used indirectly through [`MCUmgrClient`](crate::MCUmgrClient).
 pub struct Connection {
     transport: Box<dyn Transport + Send>,
     next_seqnum: u8,
     transport_buffer: [u8; u16::MAX as usize],
 }
 
+/// Errors the device can respond with when trying to execute an SMP command.
+///
+/// More information can be found [here](https://docs.zephyrproject.org/latest/services/device_mgmt/smp_protocol.html#minimal-response-smp-data).
 #[derive(Debug)]
 pub enum DeviceError {
-    V1 { rc: i32 },
-    V2 { group: u32, rc: u32 },
+    /// MCUmgr SMP v1 error codes
+    V1 {
+        /// Error code
+        rc: i32,
+    },
+    /// MCUmgr SMP v2 error codes
+    V2 {
+        /// Group id
+        group: u32,
+        /// Group based error code
+        rc: u32,
+    },
 }
 
 impl Display for DeviceError {
@@ -25,20 +42,20 @@ impl Display for DeviceError {
         match self {
             DeviceError::V1 { rc } => {
                 let err_str = match *rc {
-                    0 => format!("MGMT_ERR_EOK"),
-                    1 => format!("MGMT_ERR_EUNKNOWN"),
-                    2 => format!("MGMT_ERR_ENOMEM"),
-                    3 => format!("MGMT_ERR_EINVAL"),
-                    4 => format!("MGMT_ERR_ETIMEOUT"),
-                    5 => format!("MGMT_ERR_ENOENT"),
-                    6 => format!("MGMT_ERR_EBADSTATE"),
-                    7 => format!("MGMT_ERR_EMSGSIZE"),
-                    8 => format!("MGMT_ERR_ENOTSUP"),
-                    9 => format!("MGMT_ERR_ECORRUPT"),
-                    10 => format!("MGMT_ERR_EBUSY"),
-                    11 => format!("MGMT_ERR_EACCESSDENIED"),
-                    12 => format!("MGMT_ERR_UNSUPPORTED_TOO_OLD"),
-                    13 => format!("MGMT_ERR_UNSUPPORTED_TOO_NEW"),
+                    0 => "MGMT_ERR_EOK".to_string(),
+                    1 => "MGMT_ERR_EUNKNOWN".to_string(),
+                    2 => "MGMT_ERR_ENOMEM".to_string(),
+                    3 => "MGMT_ERR_EINVAL".to_string(),
+                    4 => "MGMT_ERR_ETIMEOUT".to_string(),
+                    5 => "MGMT_ERR_ENOENT".to_string(),
+                    6 => "MGMT_ERR_EBADSTATE".to_string(),
+                    7 => "MGMT_ERR_EMSGSIZE".to_string(),
+                    8 => "MGMT_ERR_ENOTSUP".to_string(),
+                    9 => "MGMT_ERR_ECORRUPT".to_string(),
+                    10 => "MGMT_ERR_EBUSY".to_string(),
+                    11 => "MGMT_ERR_EACCESSDENIED".to_string(),
+                    12 => "MGMT_ERR_UNSUPPORTED_TOO_OLD".to_string(),
+                    13 => "MGMT_ERR_UNSUPPORTED_TOO_NEW".to_string(),
                     256.. => format!("MGMT_ERR_EPERUSER({rc})"),
                     _ => format!("Unknown({rc})"),
                 };
@@ -49,26 +66,33 @@ impl Display for DeviceError {
     }
 }
 
+/// Errors that can happen on SMP protocol level
 #[derive(Error, Debug, Diagnostic)]
 pub enum ExecuteError {
+    /// An error happend on SMP transport level while sending a request
     #[error("sending failed")]
     #[diagnostic(code(zephyr_mcumgr::connection::execute::send))]
     SendFailed(#[from] SendError),
+    /// An error happend on SMP transport level while receiving a response
     #[error("receiving failed")]
     #[diagnostic(code(zephyr_mcumgr::connection::execute::receive))]
     ReceiveFailed(#[from] ReceiveError),
+    /// An error happened while CBOR encoding the request payload
     #[error("cbor encoding failed")]
     #[diagnostic(code(zephyr_mcumgr::connection::execute::encode))]
     EncodeFailed,
+    /// An error happened while CBOR decoding the response payload
     #[error("cbor decoding failed")]
     #[diagnostic(code(zephyr_mcumgr::connection::execute::decode))]
     DecodeFailed,
+    /// The device returned an SMP error
     #[error("device returned error {0}")]
     #[diagnostic(code(zephyr_mcumgr::connection::execute::device_error))]
     ErrorResponse(DeviceError),
 }
 
 impl Connection {
+    /// Creates a new SMP
     pub fn new<T: Transport + Send + 'static>(transport: T) -> Self {
         Self {
             transport: Box::new(transport),
@@ -77,7 +101,8 @@ impl Connection {
         }
     }
 
-    pub fn execute_cbor<R: McuMgrRequest>(
+    /// Executes a given CBOR based SMP command.
+    pub fn execute_command<R: McuMgrCommand>(
         &mut self,
         request: &R,
     ) -> Result<R::Response, ExecuteError> {
@@ -135,7 +160,16 @@ impl Connection {
         Ok(decoded_response)
     }
 
-    pub fn execute_raw(
+    /// Executes a raw SMP command.
+    ///
+    /// Same as [`Connection::execute_command`], but the payload can be anything and must not
+    /// necessarily be CBOR encoded.
+    ///
+    /// Errors are also not decoded but instead will be returned as raw CBOR data.
+    ///
+    /// Read Zephyr's [SMP Protocol Specification](https://docs.zephyrproject.org/latest/services/device_mgmt/smp_protocol.html)
+    /// for more information.
+    pub fn execute_raw_command(
         &mut self,
         write_operation: bool,
         group_id: u16,

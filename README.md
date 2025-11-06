@@ -2,8 +2,8 @@
 
 [![Crates.io](https://img.shields.io/crates/v/zephyr-mcumgr)](https://crates.io/crates/zephyr-mcumgr)
 [![Crates.io](https://img.shields.io/crates/d/zephyr-mcumgr)](https://crates.io/crates/zephyr-mcumgr)
-[![License](https://img.shields.io/crates/l/zephyr-mcumgr)](https://github.com/Finomnis/zephyr-mcumgr/blob/main/LICENSE-MIT)
-[![Build Status](https://img.shields.io/github/actions/workflow/status/Finomnis/zephyr-mcumgr/ci.yml?branch=main)](https://github.com/Finomnis/zephyr-mcumgr/actions/workflows/ci.yml?query=branch%3Amain)
+[![License](https://img.shields.io/crates/l/zephyr-mcumgr)](https://github.com/Finomnis/zephyr-mcumgr-client/blob/main/LICENSE-MIT)
+[![Build Status](https://img.shields.io/github/actions/workflow/status/Finomnis/zephyr-mcumgr-client/ci.yml?branch=main)](https://github.com/Finomnis/zephyr-mcumgr-client/actions/workflows/ci.yml?query=branch%3Amain)
 [![docs.rs](https://img.shields.io/docsrs/zephyr-mcumgr)](https://docs.rs/zephyr-mcumgr)
 
 This crate provides a full Rust based software suite for Zephyr's [MCUmgr protocol](https://docs.zephyrproject.org/latest/services/device_mgmt/mcumgr.html).
@@ -19,18 +19,33 @@ Specifically, it provides:
 
 ## Usage Example
 
-```rust
-- TODO -
+```rust no_run
+use zephyr_mcumgr::MCUmgrClient;
+
+fn main() {
+    let serial = serialport::new("COM42", 115200)
+        .timeout(std::time::Duration::from_millis(500))
+        .open()
+        .unwrap();
+
+    let mut client = MCUmgrClient::new_from_serial(serial);
+    client.use_auto_frame_size().unwrap();
+
+    println!("{:?}", client.os_echo("Hello world!").unwrap());
+}
+```
+```none
+"Hello world!"
 ```
 
-## Using as a library
+## Usage as a library
 
 To use this library in your project, enter your project directory and run:
 ```bash
 cargo add zephyr-mcumgr
 ```
 
-## Installing as command line tool
+## Installation as command line tool
 
 ```bash
 cargo install zephyr-mcumgr-cli
