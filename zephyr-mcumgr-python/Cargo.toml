@@ -1,0 +1,30 @@
+[package]
+name = "zephyr-mcumgr-python"
+description = "Python API for Zephyr's MCUmgr protocol"
+
+rust-version = "1.91"
+
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+readme.workspace = true
+repository.workspace = true
+keywords.workspace = true
+
+[lib]
+# "cdylib" is necessary to produce a shared library for Python to import from.
+crate-type = ["cdylib", "rlib"]
+doc = false
+
+[dependencies.pyo3]
+version = "0.27.1"
+# "abi3-py310" tells pyo3 (and maturin) to build using the stable ABI with minimum Python version 3.10
+features = ["abi3-py310"]
+
+[dependencies.pyo3-stub-gen]
+version = "0.17.0"
+
+[dependencies]
+zephyr-mcumgr.workspace = true
+serialport.workspace = true
