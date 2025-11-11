@@ -17,6 +17,10 @@ pub struct App {
     #[arg(short, long, default_value_t = 500)]
     pub timeout: u64,
 
+    /// Show progress bar for data transfer commands
+    #[arg(short, long)]
+    pub progress: bool,
+
     /// Command group
     #[command(subcommand)]
     pub group: Group,
@@ -32,7 +36,22 @@ pub enum OsCommand {
 }
 
 #[derive(Debug, Subcommand)]
-pub enum FsCommand {}
+pub enum FsCommand {
+    /// Uploads a file to the device
+    Upload {
+        /// The file to copy. '-' for stdin.
+        local: String,
+        /// The target path on the device.
+        remote: String,
+    },
+    /// Downloads a file from the device
+    Download {
+        /// The file path on the device.
+        remote: String,
+        /// The target path. '-' for stdout.
+        local: String,
+    },
+}
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, ValueEnum)]
 pub enum RawCommandOp {
