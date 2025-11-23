@@ -53,6 +53,21 @@ pub enum OsCommand {
     },
     /// Retrieve the device's RTC datetime
     GetDatetime,
+    /// Issue a system reset
+    SystemReset {
+        /// Issue a force reset
+        #[arg(short, long)]
+        force: bool,
+        /// Overwrite the boot mode
+        ///
+        /// - 0: Normal system boot
+        /// - 1: Bootloader recovery mode
+        ///
+        /// Requires `CONFIG_MCUMGR_GRP_OS_RESET_BOOT_MODE`
+        #[arg(verbatim_doc_comment)]
+        #[arg(long)]
+        bootmode: Option<u8>,
+    },
 }
 
 #[derive(Debug, Subcommand)]
