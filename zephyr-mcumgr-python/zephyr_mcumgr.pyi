@@ -121,7 +121,7 @@ class MCUmgrClient:
     A high level client for Zephyr's MCUmgr SMP functionality
     """
     @staticmethod
-    def serial(serial: builtins.str, baud_rate: builtins.int = 115200, timeout_ms: builtins.int = 500) -> 'MCUmgrClient':
+    def serial(serial: builtins.str, baud_rate: builtins.int = 115200, timeout_ms: builtins.int = 2000) -> 'MCUmgrClient':
         r"""
         Creates a new serial port based Zephyr MCUmgr SMP client.
         
@@ -132,7 +132,7 @@ class MCUmgrClient:
         * `timeout_ms` - The communication timeout, in ms.
         """
     @staticmethod
-    def usb_serial(identifier: builtins.str, baud_rate: builtins.int = 115200, timeout_ms: builtins.int = 500) -> 'MCUmgrClient':
+    def usb_serial(identifier: builtins.str, baud_rate: builtins.int = 115200, timeout_ms: builtins.int = 2000) -> 'MCUmgrClient':
         r"""
         Creates a Zephyr MCUmgr SMP client based on a USB serial port identified by VID:PID.
         
@@ -249,6 +249,14 @@ class MCUmgrClient:
     def image_get_state(self) -> 'builtins.list[ImageState]':
         r"""
         Obtain a list of images with their current state.
+        """
+    def image_erase(self, slot: typing.Optional[builtins.int] = None) -> None:
+        r"""
+        Erase image slot on target device.
+        
+        ### Arguments
+        
+        * `slot` - The slot ID of the image to erase. Slot `1` if omitted.
         """
     def image_slot_info(self) -> 'builtins.list[SlotInfoImage]':
         r"""

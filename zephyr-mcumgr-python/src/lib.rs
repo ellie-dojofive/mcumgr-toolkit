@@ -57,7 +57,7 @@ impl MCUmgrClient {
     /// * `timeout_ms` - The communication timeout, in ms.
     ///
     #[staticmethod]
-    #[pyo3(signature = (serial, baud_rate=115200, timeout_ms=500))]
+    #[pyo3(signature = (serial, baud_rate=115200, timeout_ms=2000))]
     fn serial(serial: &str, baud_rate: u32, timeout_ms: u64) -> PyResult<Self> {
         let serial = serialport::new(serial, baud_rate)
             .timeout(Duration::from_millis(timeout_ms))
@@ -88,7 +88,7 @@ impl MCUmgrClient {
     /// - `1234:.*:[2-3]` - Vendor ID 1234, any Product Id, Interface 2 or 3.
     ///
     #[staticmethod]
-    #[pyo3(signature = (identifier, baud_rate=115200, timeout_ms=500))]
+    #[pyo3(signature = (identifier, baud_rate=115200, timeout_ms=2000))]
     fn usb_serial(identifier: &str, baud_rate: u32, timeout_ms: u64) -> PyResult<Self> {
         let client = ::zephyr_mcumgr::MCUmgrClient::new_from_usb_serial(
             identifier,
@@ -251,6 +251,17 @@ impl MCUmgrClient {
             .into_iter()
             .map(|val| ImageState::from_response(py, val))
             .collect())
+    }
+
+    /// Erase image slot on target device.
+    ///
+    /// ### Arguments
+    ///
+    /// * `slot` - The slot ID of the image to erase. Slot `1` if omitted.
+    ///
+    #[pyo3(signature = (slot=None))]
+    pub fn image_erase(&self, slot: Option<u32>) -> PyResult<()> {
+        self.get_client()?.image_erase(slot).map_err(err_to_pyerr)
     }
 
     /// Obtain a list of available image slots.
@@ -510,7 +521,6 @@ impl MCUmgrClient {
 /// from zephyr_mcumgr import MCUmgrClient
 ///
 /// with MCUmgrClient.serial("/dev/ttyACM0") as client:
-///     client.set_timeout_ms(500)
 ///     client.use_auto_frame_size()
 ///
 ///     print(client.os_echo("Hello world!"))
