@@ -1,5 +1,4 @@
-use std::io::{IsTerminal, Write};
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream, WriteColor};
+use console::style;
 
 use crate::errors::CliError;
 
@@ -39,17 +38,6 @@ impl StructuredPrint {
     }
 
     pub fn print(self, depth: usize) {
-        self.print_impl(
-            depth,
-            &mut StandardStream::stdout(if std::io::stdout().is_terminal() {
-                ColorChoice::Auto
-            } else {
-                ColorChoice::Never
-            }),
-        );
-    }
-
-    fn print_impl(self, depth: usize, stdout: &mut StandardStream) {
         let indent = std::iter::repeat_n("    ", depth).collect::<String>();
         let longest_key = self
             .entries
@@ -60,7 +48,7 @@ impl StructuredPrint {
 
         for (key, value) in self.entries {
             if depth == 0 {
-                writeln!(stdout).ok();
+                println!();
             }
             let padding = std::iter::repeat_n(
                 ' ',
@@ -73,35 +61,28 @@ impl StructuredPrint {
             .collect::<String>();
             match value {
                 Entry::Value(value) => {
-                    let (value, color) = match value {
-                        serde_json::Value::Null => ("---".to_string(), None),
-                        serde_json::Value::Bool(val) => (
-                            val.to_string(),
-                            Some(if val { Color::Green } else { Color::Red }),
-                        ),
-                        serde_json::Value::Number(number) => (number.to_string(), None),
-                        serde_json::Value::String(s) => (s, None),
-                        serde_json::Value::Array(_) => ("...".to_string(), None),
-                        serde_json::Value::Object(_) => ("...".to_string(), None),
+                    let value = match value {
+                        serde_json::Value::Null => style("---".to_string()),
+                        serde_json::Value::Bool(val) => {
+                            let val_str = style(val.to_string());
+                            if val { val_str.green() } else { val_str.red() }
+                        }
+                        serde_json::Value::Number(number) => style(number.to_string()),
+                        serde_json::Value::String(s) => style(s),
+                        serde_json::Value::Array(_) => style("...".to_string()),
+                        serde_json::Value::Object(_) => style("...".to_string()),
                     };
 
-                    write!(stdout, "{}{}:{}", indent, key, padding).ok();
-                    if let Some(color) = color {
-                        stdout.set_color(ColorSpec::new().set_fg(Some(color))).ok();
-                        writeln!(stdout, "{}", value).ok();
-                        stdout.reset().ok();
-                    } else {
-                        writeln!(stdout, "{}", value).ok();
-                    }
+                    println!("{}{}:{}{}", indent, key, padding, value);
                 }
                 Entry::Sublist(sublist) => {
-                    writeln!(stdout, "{}{}:", indent, key).ok();
-                    sublist.print_impl(depth + 1, stdout);
+                    println!("{}{}:", indent, key);
+                    sublist.print(depth + 1);
                 }
             }
         }
         if depth == 0 {
-            writeln!(stdout).ok();
+            println!();
         }
     }
 
