@@ -5,16 +5,26 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.6.3] - xxxx-xx-xx
+## [0.7.0] - 2026-01-24
+
+### Breaking Changes
+
+- Rename `zephyr_mcumgr::commands::image::GetImageStateResponse` to `zephyr_mcumgr::commands::image::ImageStateResponse`
 
 ### Changes
 
 - Add Python/Rust library commands:
   - `image_upload`
+  - `image_set_state`
 - Add CLI commands:
   - `image`
     - `upload`
+    - `set-state`
 - Refactor cli color output, remove `termcolor` dependency
+
+### Fixes
+
+- Log messages collide with progress bar
 
 ## [0.6.2] - 2026-01-13
 
@@ -223,7 +233,7 @@ Initial release, not feature complete yet.
 
 Primarily to test release workflow.
 
-[0.6.3]: https://github.com/Finomnis/zephyr-mcumgr-client/compare/0.6.2...0.6.3
+[0.7.0]: https://github.com/Finomnis/zephyr-mcumgr-client/compare/0.6.2...0.7.0
 [0.6.2]: https://github.com/Finomnis/zephyr-mcumgr-client/compare/0.6.1...0.6.2
 [0.6.1]: https://github.com/Finomnis/zephyr-mcumgr-client/compare/0.6.0...0.6.1
 [0.6.0]: https://github.com/Finomnis/zephyr-mcumgr-client/compare/0.5.1...0.6.0
