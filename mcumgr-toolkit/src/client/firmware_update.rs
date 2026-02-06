@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::fmt::Display;
 
 use miette::Diagnostic;
 use thiserror::Error;
@@ -72,18 +72,84 @@ pub struct FirmwareUpdateParams {
     pub upgrade_only: bool,
 }
 
+/// The step of the firmware update that is currently being performed
+#[derive(Clone, Debug)]
+pub enum FirmwareUpdateStep {
+    /// Querying which bootloader the device is running
+    DetectingBootloader,
+    /// The bootloader was found
+    BootloaderFound(BootloaderType),
+    /// Extracting meta information from the new firmware image
+    ParsingFirmwareImage,
+    /// Querying the current firmware state of the device
+    QueryingDeviceState,
+    /// A summary of what update exactly we will perform now
+    UpdateInfo {
+        /// The current version with the current ID hash, if available
+        current_version: Option<(String, Option<[u8; 32]>)>,
+        /// The new version with the new ID hash
+        new_version: (String, [u8; 32]),
+    },
+    /// Uploading the new firmware to the device
+    UploadingFirmware,
+    /// Marking the new firmware to be swapped to active during next boot
+    ActivatingFirmware,
+    /// Triggering a system reboot so that the bootloader switches to the new image
+    TriggeringReboot,
+}
+
+impl Display for FirmwareUpdateStep {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::DetectingBootloader => f.write_str("Detecting bootloader ..."),
+            Self::BootloaderFound(bootloader_type) => {
+                write!(f, "Found bootloader: {bootloader_type}")
+            }
+            Self::ParsingFirmwareImage => f.write_str("Parsing firmware image ..."),
+            Self::QueryingDeviceState => f.write_str("Querying device state ..."),
+            Self::UpdateInfo {
+                current_version,
+                new_version,
+            } => {
+                f.write_str("Update: ")?;
+
+                if let Some((version_str, version_hash)) = &current_version {
+                    f.write_str(version_str)?;
+
+                    if let Some(version_hash) = version_hash {
+                        write!(f, "-{}", hex::encode(&version_hash[..SHOWN_HASH_DIGITS]))?;
+                    }
+                } else {
+                    f.write_str("Empty")?;
+                };
+
+                write!(
+                    f,
+                    " -> {}-{}",
+                    new_version.0,
+                    hex::encode(&new_version.1[..SHOWN_HASH_DIGITS])
+                )
+            }
+            Self::UploadingFirmware => f.write_str("Uploading new firmware ..."),
+            Self::ActivatingFirmware => f.write_str("Activating new firmware ..."),
+            Self::TriggeringReboot => f.write_str("Triggering device reboot ..."),
+        }
+    }
+}
+
 /// The progress callback type of [`MCUmgrClient::firmware_update`].
 ///
 /// # Arguments
 ///
-/// * `&str` - Human readable description of the current step
+/// * `FirmwareUpdateStep` - The current step that is being executed
 /// * `Option<(u64, u64)>` - The (current, total) progress of the current step, if available.
 ///
 /// # Return
 ///
 /// `false` on error; this will cancel the update
 ///
-pub type FirmwareUpdateProgressCallback<'a> = dyn FnMut(&str, Option<(u64, u64)>) -> bool + 'a;
+pub type FirmwareUpdateProgressCallback<'a> =
+    dyn FnMut(FirmwareUpdateStep, Option<(u64, u64)>) -> bool + 'a;
 
 const SHOWN_HASH_DIGITS: usize = 4;
 
@@ -111,9 +177,9 @@ pub(crate) fn firmware_update(
     let firmware = firmware.as_ref();
 
     let has_progress = progress.is_some();
-    let mut progress = |msg: Cow<str>, prog| {
+    let mut progress = |state: FirmwareUpdateStep, prog| {
         if let Some(progress) = &mut progress {
-            if !progress(msg.as_ref(), prog) {
+            if !progress(state, prog) {
                 return Err(FirmwareUpdateError::ProgressCallbackError);
             }
         }
@@ -123,7 +189,7 @@ pub(crate) fn firmware_update(
     let bootloader_type = if let Some(bootloader_type) = params.bootloader_type {
         bootloader_type
     } else {
-        progress("Detecting bootloader ...".into(), None)?;
+        progress(FirmwareUpdateStep::DetectingBootloader, None)?;
 
         let bootloader_type = client
             .os_bootloader_info()
@@ -131,12 +197,12 @@ pub(crate) fn firmware_update(
             .get_bootloader_type()
             .map_err(FirmwareUpdateError::BootloaderNotSupported)?;
 
-        progress(format!("Found bootloader: {bootloader_type}").into(), None)?;
+        progress(FirmwareUpdateStep::BootloaderFound(bootloader_type), None)?;
 
         bootloader_type
     };
 
-    progress("Parsing firmware image ...".into(), None)?;
+    progress(FirmwareUpdateStep::ParsingFirmwareImage, None)?;
     let (image_version, image_id_hash) = match bootloader_type {
         BootloaderType::MCUboot => {
             let info = mcuboot::get_image_info(std::io::Cursor::new(firmware))?;
@@ -144,13 +210,7 @@ pub(crate) fn firmware_update(
         }
     };
 
-    let new_image_string = format!(
-        "{}-{}",
-        image_version,
-        hex::encode(&image_id_hash[..SHOWN_HASH_DIGITS])
-    );
-
-    progress("Querying device state ...".into(), None)?;
+    progress(FirmwareUpdateStep::QueryingDeviceState, None)?;
     let image_state = client
         .image_get_state()
         .map_err(FirmwareUpdateError::GetStateFailed)?;
@@ -164,22 +224,11 @@ pub(crate) fn firmware_update(
                 .find(|img| img.image == actual_target_image && img.slot == 0)
         });
 
-    let active_image_string = if let Some(active_image) = &active_image {
-        if let Some(active_hash) = active_image.hash {
-            format!(
-                "{}-{}",
-                active_image.version,
-                hex::encode(&active_hash[..SHOWN_HASH_DIGITS]),
-            )
-        } else {
-            active_image.version.clone()
-        }
-    } else {
-        "Empty".to_string()
-    };
-
     progress(
-        format!("Update: {} -> {}", active_image_string, new_image_string).into(),
+        FirmwareUpdateStep::UpdateInfo {
+            current_version: active_image.map(|img| (img.version.clone(), img.hash)),
+            new_version: (image_version.to_string(), image_id_hash),
+        },
         None,
     )?;
 
@@ -187,9 +236,13 @@ pub(crate) fn firmware_update(
         return Err(FirmwareUpdateError::AlreadyInstalled);
     }
 
-    progress("Uploading new firmware ...".into(), None)?;
+    progress(FirmwareUpdateStep::UploadingFirmware, None)?;
     let mut upload_progress_cb = |current, total| {
-        progress("Uploading new firmware ...".into(), Some((current, total))).is_ok()
+        progress(
+            FirmwareUpdateStep::UploadingFirmware,
+            Some((current, total)),
+        )
+        .is_ok()
     };
 
     client
@@ -209,7 +262,7 @@ pub(crate) fn firmware_update(
             }
         })?;
 
-    progress("Activating new firmware ...".into(), None)?;
+    progress(FirmwareUpdateStep::ActivatingFirmware, None)?;
     let set_state_result = client.image_set_state(Some(image_id_hash), params.force_confirm);
     if let Err(set_state_error) = set_state_result {
         let mut image_already_active = false;
@@ -220,7 +273,7 @@ pub(crate) fn firmware_update(
         // Sanity check that the image is on the first position already to avoid false
         // positives of this exception.
         if bootloader_type == BootloaderType::MCUboot && set_state_error.command_not_supported() {
-            progress("Querying device state ...".into(), None)?;
+            progress(FirmwareUpdateStep::QueryingDeviceState, None)?;
             let image_state = client
                 .image_get_state()
                 .map_err(FirmwareUpdateError::GetStateFailed)?;
@@ -237,7 +290,7 @@ pub(crate) fn firmware_update(
     }
 
     if !params.skip_reboot {
-        progress("Triggering device reboot ...".into(), None)?;
+        progress(FirmwareUpdateStep::TriggeringReboot, None)?;
         client
             .os_system_reset(false, None)
             .map_err(FirmwareUpdateError::RebootFailed)?;
