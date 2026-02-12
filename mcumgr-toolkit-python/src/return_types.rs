@@ -268,7 +268,7 @@ pub struct SlotInfoImageSlot {
     pub slot: u32,
     /// size of the slot
     #[pyo3(get)]
-    pub size: u64,
+    pub size: Option<u64>,
     /// specifies the image ID that can be used by external tools to upload an image to that slot
     #[pyo3(get)]
     pub upload_image_id: Option<u32>,

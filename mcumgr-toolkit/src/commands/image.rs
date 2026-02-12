@@ -219,7 +219,8 @@ pub struct SlotInfoImageSlot {
     /// The slot inside the image being enumerated
     pub slot: u32,
     /// The size of the slot
-    pub size: u64,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub size: Option<u64>,
     /// Specifies the image ID that can be used by external tools to upload an image to that slot
     #[serde(skip_serializing_if = "Option::is_none")]
     pub upload_image_id: Option<u32>,
